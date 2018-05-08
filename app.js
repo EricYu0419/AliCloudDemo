@@ -1,7 +1,9 @@
 const Koa = require("koa");
 const serve = require("koa-static");
+const proxy = require("koa-proxy");
 const logger = require("koa-logger");
 const compose = require("koa-compose");
+const cfg = require("./config");
 const router = require("./routers");
 const app = new Koa();
 
@@ -25,20 +27,18 @@ async function responseTime(ctx, next) {
   ctx.set("X-Response-Time", ms + "ms");
 }
 
-// response
-
-async function respond(ctx, next) {
-  await next();
-  if ("/" != ctx.url) return;
-  ctx.body = "Hello World";
-}
-
 // composed middleware
 
-const middlewares = compose([responseTime, ignoreAssets(logger()), respond]);
-app.use(serve('./public'));
+const middlewares = compose([responseTime, ignoreAssets(logger())]);
+app.use(serve("./public"));
 // console.info(router);
-app.use(middlewares);
-app.use(router.routes()).use(router.allowedMethods());
+if (!cfg.proxy) {
+  app.use(middlewares);
+  app.use(router.routes()).use(router.allowedMethods());
+} else {
+  app.use(proxy({
+    host:cfg.host
+  }));
+}
 
 app.listen(8080);
