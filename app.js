@@ -1,4 +1,5 @@
 const Koa = require("koa");
+const serve = require("koa-static");
 const logger = require("koa-logger");
 const compose = require("koa-compose");
 const router = require("./routers");
@@ -35,7 +36,7 @@ async function respond(ctx, next) {
 // composed middleware
 
 const middlewares = compose([responseTime, ignoreAssets(logger()), respond]);
-
+app.use(serve('./public'));
 // console.info(router);
 app.use(middlewares);
 app.use(router.routes()).use(router.allowedMethods());
