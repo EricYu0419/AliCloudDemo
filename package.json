@@ -8,8 +8,16 @@
     "start": "node app.js",
     "dev": "set DEBUG=* && supervisor app.js"
   },
-  "author": "",
+  "author": {
+    "name": "Eric Yu",
+    "email": "ericy0419@gmail.com",
+    "url": "https://github.com/EricYu0419"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "github.com:EricYu0419/AliCloudDemo.git"
+  },
   "dependencies": {
     "aliyun-sdk": "^1.11.5",
     "koa": "^2.5.1",
