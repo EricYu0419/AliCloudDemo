@@ -37,7 +37,7 @@ if (!cfg.proxy) {
   app.use(router.routes()).use(router.allowedMethods());
 } else {
   app.use(proxy({
-    host:cfg.host
+    host:cfg.proxy.host
   }));
 }
 
