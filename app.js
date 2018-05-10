@@ -2,6 +2,7 @@ const Koa = require("koa");
 const serve = require("koa-static");
 const proxy = require("koa-proxy");
 const logger = require("koa-logger");
+const cors = require("koa-cors");
 const compose = require("koa-compose");
 const cfg = require("./config");
 const router = require("./routers");
@@ -29,7 +30,7 @@ async function responseTime(ctx, next) {
 
 // composed middleware
 
-const middlewares = compose([responseTime, ignoreAssets(logger())]);
+const middlewares = compose([cors(),responseTime, ignoreAssets(logger())]);
 app.use(serve("./public"));
 // console.info(router);
 if (!cfg.proxy) {
