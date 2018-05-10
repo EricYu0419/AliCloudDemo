@@ -8,6 +8,7 @@ const cfg = require("./config");
 const router = require("./routers");
 const app = new Koa();
 
+app.use(cors());
 function ignoreAssets(mw) {
   return async function(ctx, next) {
     if (/(\.js|\.css|\.ico)$/.test(ctx.path)) {
@@ -30,13 +31,15 @@ async function responseTime(ctx, next) {
 
 // composed middleware
 
-const middlewares = compose([cors(),responseTime, ignoreAssets(logger())]);
+const middlewares = compose([responseTime, ignoreAssets(logger())]);
 app.use(serve("./public"));
 // console.info(router);
+app.use(middlewares);
 if (!cfg.proxy) {
-  app.use(middlewares);
+  console.info('proxy mode close')
   app.use(router.routes()).use(router.allowedMethods());
 } else {
+  console.info('proxy mode start')
   app.use(proxy({
     host:cfg.proxy.host
   }));
