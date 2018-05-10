@@ -9,7 +9,7 @@ const apis = require("fs").readdirSync(
 
 router
   .post("/auth", async (ctx, next) => {
-    console.info(ctx);
+    console.info(ctx.request.body);
     ctx.body = {};
     await next();
   })

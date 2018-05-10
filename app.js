@@ -6,9 +6,12 @@ const cors = require("koa-cors");
 const compose = require("koa-compose");
 const cfg = require("./config");
 const router = require("./routers");
+const bodyParser = require('koa-bodyparser');
 const app = new Koa();
 
 app.use(cors());
+app.use(bodyParser());
+
 function ignoreAssets(mw) {
   return async function(ctx, next) {
     if (/(\.js|\.css|\.ico)$/.test(ctx.path)) {
