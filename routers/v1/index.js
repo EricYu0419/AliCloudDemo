@@ -7,7 +7,13 @@ const apis = require("fs").readdirSync(
 );
 // const AcsClient = new AcsROAClient(cfg);
 
-router.get("/apiList", async (ctx, next) => {
+router
+.post('/auth', async(ctx,next)=>{
+  console.info(ctx);
+  ctx.body={};
+  await next();
+})
+.get("/apiList", async (ctx, next) => {
   // ctx.set('Content-Type','application/json');
   ctx.body = ALY;
   await next();
