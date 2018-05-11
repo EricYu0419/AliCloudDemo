@@ -16,14 +16,13 @@ router
     db.Admin.findOne(query).then(res => {
       res.comparePassword(password, isMatch => {
         if (isMatch) {
-
+          ctx.body = res;
         } else {
-          ctx.body = 'UnAuthorize';
-          next();
+          ctx.body = "UnAuthorize";
         }
+        next();
       });
     });
-    
   })
   .get("/apiList", async (ctx, next) => {
     // ctx.set('Content-Type','application/json');
