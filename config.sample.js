@@ -10,5 +10,7 @@ module.exports = {
     password: "",
     server: "",
     database: ""
-  }
+  },
+  port: 8080,
+  jwt_secret: "aliclouddemo_secret"
 };

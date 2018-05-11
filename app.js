@@ -3,13 +3,22 @@ const serve = require("koa-static");
 const proxy = require("koa-proxy");
 const logger = require("koa-logger");
 const cors = require("koa-cors");
+const jwt = require("koa-jwt");
 const cfg = require("./config");
 const router = require("./routers");
 const bodyParser = require("koa-bodyparser");
 const app = new Koa();
+const dbInit = require("./db");
+
+const errorHandle = require("./utils/middlewares/errorHandle");
 
 // 允许跨域
 app.use(cors());
+app.use(
+  jwt({ secret: cfg.jwt_secret }).unless({
+    path: [/\/auth/, /\/asset/]
+  })
+);
 
 // 日志过滤资源文件
 function ignoreAssets(mw) {
@@ -30,6 +39,7 @@ app.use(ignoreAssets(logger()));
 // 根据配置代理信息选择是处理还是转发。
 if (!cfg.proxy) {
   console.info("非代理模式（全栈一体）");
+  db.Init();
   app.use(bodyParser());
   app.use(router.routes()).use(router.allowedMethods());
 } else {
@@ -44,6 +54,8 @@ if (!cfg.proxy) {
     })
   );
 }
+
+app.use(errorHandle);
 
 // 根据配置监听端口
 app.listen(cfg.port);

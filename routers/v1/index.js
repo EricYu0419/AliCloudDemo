@@ -2,20 +2,32 @@ const Router = require("koa-router");
 const cfg = require("../../config").alicloud;
 const ALY = require("aliyun-sdk");
 const router = new Router();
+const db = require("../../db");
 const apis = require("fs").readdirSync(
   require("path").join(__dirname + "../../../node_modules/aliyun-sdk/apis")
 );
 // const AcsClient = new AcsROAClient(cfg);
 
 router
-  .post("/auth", async (ctx, next) => {
-    console.info(ctx.request.body);
-    ctx.body = {};
-    await next();
+  .post("/auth", (ctx, next) => {
+    const query = { username: ctx.request.body.email };
+    const rememberme = ctx.request.body.remeberme;
+    const password = ctx.request.body.pass;
+    db.Admin.findOne(query).then(res => {
+      res.comparePassword(password, isMatch => {
+        if (isMatch) {
+
+        } else {
+          ctx.body = 'UnAuthorize';
+          next();
+        }
+      });
+    });
+    
   })
   .get("/apiList", async (ctx, next) => {
     // ctx.set('Content-Type','application/json');
-    ctx.body = 'apiList';
+    ctx.body = "apiList";
     await next();
   });
 
