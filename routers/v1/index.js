@@ -24,14 +24,14 @@ router
               userInfo.token = jwt.sign(userInfo, jwt_secret, { expiresIn: '12h' });
               ctx.body = userInfo;
             } else {
-              ctx.body = "UnAuthorize";
+              ctx.status = 401;
             }
             resolve();
             return next();
           });
         });
       } else {
-        ctx.body = "UnAuthorize";
+        ctx.status = 401;
         return next();
       }
     });
