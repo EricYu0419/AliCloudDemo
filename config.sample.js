@@ -6,10 +6,15 @@ module.exports = {
     apiVersion: ""
   },
   db: {
-    user: "",
-    password: "",
-    server: "",
-    database: ""
+    mssql: {
+      user: "",
+      password: "",
+      server: "",
+      database: ""
+    },
+    mongo: {
+      uri: "mongodb://localhost/alydemo"
+    }
   },
   port: 8080,
   jwt_secret: "aliclouddemo_secret"
