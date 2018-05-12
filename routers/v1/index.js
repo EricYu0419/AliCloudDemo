@@ -3,6 +3,8 @@ const cfg = require("../../config").alicloud;
 const ALY = require("aliyun-sdk");
 const router = new Router();
 const db = require("../../db");
+const jwt = require("jsonwebtoken");
+const jwt_secret = require("../../config").jwt_secret;
 const apis = require("fs").readdirSync(
   require("path").join(__dirname + "../../../node_modules/aliyun-sdk/apis")
 );
@@ -13,15 +15,25 @@ router
     const query = { username: ctx.request.body.email };
     const rememberme = ctx.request.body.remeberme;
     const password = ctx.request.body.pass;
-    db.Admin.findOne(query).then(res => {
-      res.comparePassword(password, isMatch => {
-        if (isMatch) {
-          ctx.body = res;
-        } else {
-          ctx.body = "UnAuthorize";
-        }
-        next();
-      });
+    return db.Admin.findOne(query).then(res => {
+      if (res) {
+        return new Promise(function(resolve, reject) {
+          res.comparePassword(password, function(err, isMatch) {
+            if (isMatch) {
+              let userInfo = { username: res.username, role: res.role };
+              userInfo.token = jwt.sign(userInfo, jwt_secret, { expiresIn: '12h' });
+              ctx.body = userInfo;
+            } else {
+              ctx.body = "UnAuthorize";
+            }
+            resolve();
+            return next();
+          });
+        });
+      } else {
+        ctx.body = "UnAuthorize";
+        return next();
+      }
     });
   })
   .get("/apiList", async (ctx, next) => {

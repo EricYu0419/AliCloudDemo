@@ -16,8 +16,9 @@ module.exports = {
       console.error(err);
     });
     connection.once("open", () => {
-      callback({ Admin: Admin });
+      
       console.info(`MongoDB ${cfg.db.mongo.uri} Connect Success`);
+      callback({ Admin: Admin });
     });
   }
 };

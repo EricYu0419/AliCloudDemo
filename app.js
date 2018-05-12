@@ -8,7 +8,7 @@ const cfg = require("./config");
 const router = require("./routers");
 const bodyParser = require("koa-bodyparser");
 const app = new Koa();
-const dbInit = require("./db");
+const db = require("./db");
 
 const errorHandle = require("./utils/middlewares/errorHandle");
 
@@ -39,7 +39,7 @@ app.use(ignoreAssets(logger()));
 // 根据配置代理信息选择是处理还是转发。
 if (!cfg.proxy) {
   console.info("非代理模式（全栈一体）");
-  db.Init();
+  db.Init(() => {});
   app.use(bodyParser());
   app.use(router.routes()).use(router.allowedMethods());
 } else {
