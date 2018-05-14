@@ -13,7 +13,7 @@ const apis = require("fs").readdirSync(
 router
   .post("/auth", (ctx, next) => {
     const query = { username: ctx.request.body.email };
-    const rememberme = ctx.request.body.remeberme;
+    const rememberme = ctx.request.body.rememberme;
     const password = ctx.request.body.pass;
     return db.Admin.findOne(query).then(res => {
       if (res) {
