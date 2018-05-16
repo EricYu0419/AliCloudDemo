@@ -1,5 +1,4 @@
 const Router = require("koa-router");
-const pify = require('pify');
 const cfg = require("../../config").alicloud;
 const ALY = require("aliyun-sdk");
 const router = new Router();
@@ -9,7 +8,6 @@ const jwt_secret = require("../../config").jwt_secret;
 const apis = require("fs").readdirSync(
   require("path").join(__dirname + "../../../node_modules/aliyun-sdk/apis")
 );
-// const AcsClient = new AcsROAClient(cfg);
 const client = require('./client');
 
 router
@@ -19,7 +17,8 @@ router
     const password = ctx.request.body.pass;
     return db.Admin.findOne(query).then(res => {
       if (res) {
-        return pify(res.comparePassword)(password).then((err, isMatch)=>{
+        return new Promise(function(resolve, reject) {
+          res.comparePassword(password, function(err, isMatch) {
             if (isMatch) {
               let userInfo = { username: res.username, role: res.role };
               userInfo.token = jwt.sign(userInfo, jwt_secret, { expiresIn: '12h' });
@@ -30,6 +29,7 @@ router
             resolve();
             return next();
           });
+        });
       } else {
         ctx.status = 401;
         return next();

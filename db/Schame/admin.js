@@ -26,7 +26,7 @@ Schame.pre("save", function(next) {
 });
 
 Schame.methods.comparePassword = function(candidatePassword, cb) {
-  // console.info(candidatePassword,this.password);
+  // console.info(this);
   bcrypt.compare(candidatePassword, this.password, function(err, isMatch) {
     // console.info(err, isMatch);
     if (err) return cb(err);

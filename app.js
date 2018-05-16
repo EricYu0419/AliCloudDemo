@@ -4,6 +4,7 @@ const proxy = require("koa-proxy");
 const logger = require("koa-logger");
 const cors = require("koa-cors");
 const jwt = require("koa-jwt");
+const compress = require("koa-compress");
 const cfg = require("./config");
 const router = require("./routers");
 const bodyParser = require("koa-bodyparser");
@@ -14,6 +15,7 @@ const errorHandle = require("./utils/middlewares/errorHandle");
 
 // 允许跨域
 app.use(cors());
+app.use(compress());
 app.use(
   jwt({ secret: cfg.jwt_secret }).unless({
     path: [/\/auth/, /\/asset/]
