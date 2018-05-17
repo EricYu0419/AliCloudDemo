@@ -1,0 +1,38 @@
+const mongoose = require("mongoose");
+const Schame = new mongoose.Schema({
+  InstanceId: { type: String, index: true, unique: true, required: true },
+  InstanceName: String,
+  RegionId: { type: String, index: true, required: true, ref: "Region" },
+  ZoneId: String,
+  ImageId: String,
+  HostName: String,
+  InstanceType: String,
+  InstanceTypeFamily: String,
+  SerialNumber: String,
+  SecurityGroupIds: Object,
+  Status: String,
+  Cpu: String,
+  Memory: String,
+  InternatChargeType: String,
+  IoOptimized: Boolean,
+  DeviceAvailable: Boolean,
+  StoppedMode: String,
+  OperationLocks: Object,
+  PublicIpAddress: Object,
+  InnerIpAddress: Object,
+  VpcAttributes: Object,
+  EipAddress: Object,
+  NetworkInterfaces: Object,
+  InternetMaxBandwidthIn: Number,
+  InternetMaxBandwidthOut: Number,
+  InstanceNetworkType: String,
+  SpotStrategy: String,
+  InstanceChargeType: String,
+  CreationTime: Date,
+  ExpiredTime: Date,
+  StartTime: Date,
+  KeyPairName: String,
+  UpdateAt: Date
+});
+
+module.exports = mongoose.model("Instance", Schame);
