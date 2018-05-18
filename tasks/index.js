@@ -386,6 +386,6 @@ const tasks = {
 
 module.exports = tasks;
 
-db.Init(model => {
-  instanceTypesReflash();
-});
+// db.Init(model => {
+//   instanceTypesReflash();
+// });

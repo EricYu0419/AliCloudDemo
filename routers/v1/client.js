@@ -21,9 +21,10 @@ router.get(
       return next();
     });
   },
-  async ctx => {
+  async (ctx, next)=> {
     return db.Instance.find().then(res => {
       ctx.body.Instances = res;
+      return next();
     });
   },
   async ctx => {
