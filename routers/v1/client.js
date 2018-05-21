@@ -40,11 +40,19 @@ router
       return next();
     });
   })
-  .get("/essList", async (ctx, next) => {
-    return db.ScalingGroup.find().then(res => {
-      ctx.body = { ScalingGroups: res };
-      return next();
-    });
-  });
+  .get(
+    "/essList",
+    async (ctx, next) => {
+      return db.ScalingGroup.find().then(res => {
+        ctx.body = { ScalingGroups: res };
+        return next();
+      });
+    },
+    async (ctx) => {
+      return db.Region.find().then(res => {
+        ctx.body.Regions = res;
+      });
+    }
+  );
 
 module.exports = router;

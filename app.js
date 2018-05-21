@@ -45,6 +45,9 @@ if (!cfg.proxy) {
   db.Init(() => {});
   app.use(bodyParser());
   app.use(router.routes()).use(router.allowedMethods());
+  app.use(async(ctx)=>{
+    console.info(`response ctx.bdoy:${JSON.stringify(ctx.body,null,2)}`);
+  })
 } else {
   console.info(
     `代理模式：Proxy = > ${
