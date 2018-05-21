@@ -12,26 +12,33 @@ const ecs = new ALY.ECS({
 });
 const db = require("../../db");
 
-router.get(
-  "/ecslist",
-  async (ctx, next) => {
-    // console.info(ctx.state.user); 当前用户
+router
+  .get(
+    "/ecslist",
+    async (ctx, next) => {
+      // console.info(ctx.state.user); 当前用户
+      return db.Region.find().then(res => {
+        ctx.body = { Regions: res };
+        return next();
+      });
+    },
+    async (ctx, next) => {
+      return db.Instance.find().then(res => {
+        ctx.body.Instances = res;
+        return next();
+      });
+    },
+    async ctx => {
+      return db.InstanceType.find().then(res => {
+        ctx.body.InstanceTypes = res;
+      });
+    }
+  )
+  .get("/regionlist", async (ctx, next) => {
     return db.Region.find().then(res => {
       ctx.body = { Regions: res };
       return next();
     });
-  },
-  async (ctx, next)=> {
-    return db.Instance.find().then(res => {
-      ctx.body.Instances = res;
-      return next();
-    });
-  },
-  async ctx => {
-    return db.InstanceType.find().then(res => {
-      ctx.body.InstanceTypes = res;
-    });
-  }
-);
+  });
 
 module.exports = router;

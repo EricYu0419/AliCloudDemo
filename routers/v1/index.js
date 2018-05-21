@@ -8,7 +8,7 @@ const jwt_secret = require("../../config").jwt_secret;
 const apis = require("fs").readdirSync(
   require("path").join(__dirname + "../../../node_modules/aliyun-sdk/apis")
 );
-const client = require('./client');
+const client = require("./client");
 
 router
   .post("/auth", (ctx, next) => {
@@ -21,7 +21,12 @@ router
           res.comparePassword(password, function(err, isMatch) {
             if (isMatch) {
               let userInfo = { username: res.username, role: res.role };
-              userInfo.token = jwt.sign(userInfo, jwt_secret, { expiresIn: '12h' });
+              userInfo.token = jwt.sign(userInfo, jwt_secret, {
+                expiresIn: "12h"
+              });
+              userInfo.expiresAt = new Date(
+                new Date().getTime() + 86400 * 100 / 2
+              ).toISOString();
               ctx.body = userInfo;
             } else {
               ctx.status = 401;
@@ -83,24 +88,65 @@ cfg.apiList.forEach(element => {
         await next();
         ctx.body = apiJson;
       })
-      .get("/:Action", async (ctx, next) => {
-        await ToPromise(ctx.params, ctx.query).then(res => {
-          // console.info(res);
-          ctx.body = res;
-          next();
-        });
-      })
+      .get(
+        "/:Action",
+        async (ctx, next) => {
+          await ToPromise(ctx.params, ctx.query).then(
+            res => {
+              // console.info(res);
+              ctx.body = res;
+               next();
+            },
+            error => {
+              ctx.body = error;
+              next();
+            }
+          );
+        },
+        async (ctx,next) => {
+          if (
+            ctx.params.Action.indexOf("Instance") > -1 &&
+            ctx.params.Action.indexOf("describe") === -1
+          ) {
+            if (ctx.body.RequestId) {
+              await ToPromise({Action:"describeInstances"},{InstanceId:ctx.params.InstanceId}).then(res=>{
+                ctx.body = res.Instances.Instance[0]
+                next() 
+              });
+            }
+          }
+        },
+        async (ctx)=>{
+          await db.Instance.findOne({InstanceId:ctx.body.InstanceId}).then(res=>{
+            if (!res) {
+              res = new db.Instance(ctx.body);
+            }
+            res.Status = ctx.body.Status;
+            res.UpdateAt = new Date();
+            
+            await res.save().then(res=>{
+              ctx.body = res;
+            })
+          })
+        }
+      )
       .get("/:Action/:RegionId", async (ctx, next) => {
-        await ToPromise(ctx.params).then(res => {
-          ctx.body = res;
-          next();
-        });
+        await ToPromise(ctx.params).then(
+          res => {
+            ctx.body = res;
+            next();
+          },
+          error => {
+            ctx.body = error;
+            next();
+          }
+        );
       });
 
     router.use(`/${element}`, apiRouter.routes(), apiRouter.allowedMethods());
   }
 });
 
-router.use('/client',client.routes(),client.allowedMethods());
+router.use("/client", client.routes(), client.allowedMethods());
 
 module.exports = router;
