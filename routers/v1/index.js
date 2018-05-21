@@ -117,7 +117,7 @@ cfg.apiList.forEach(element => {
           }
         },
         async (ctx)=>{
-          await db.Instance.findOne({InstanceId:ctx.body.InstanceId}).then(res=>{
+          await db.Instance.findOne({InstanceId:ctx.body.InstanceId}).then(async (res)=>{
             if (!res) {
               res = new db.Instance(ctx.body);
             }
@@ -126,8 +126,8 @@ cfg.apiList.forEach(element => {
             
             await res.save().then(res=>{
               ctx.body = res;
-            })
-          })
+            });
+          });
         }
       )
       .get("/:Action/:RegionId", async (ctx, next) => {
