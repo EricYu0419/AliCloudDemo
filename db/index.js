@@ -5,9 +5,11 @@ const Admin = require("./Schame/admin");
 const Region = require("./Schame/region");
 const Instance = require("./Schame/instance");
 const InstanceType = require("./Schame/instanceType");
-const ScalingGroup = require("./Schame/scalingGroup");
 const ScalingConfiguration = require("./Schame/scalingConfiguration");
+const ScalingGroup = require("./Schame/scalingGroup");
 const ScalingRule = require("./Schame/scalingRule");
+const ScalingActivity = require("./Schame/scalingActivity");
+const ScalingInstance = require("./Schame/scalingInstance");
 
 mongoose.Promise = global.Promise;
 
@@ -19,6 +21,8 @@ module.exports = {
   ScalingGroup: ScalingGroup,
   ScalingConfiguration: ScalingConfiguration,
   ScalingRule: ScalingRule,
+  ScalingActivity: ScalingActivity,
+  ScalingInstance: ScalingInstance,
   Init: function(callback) {
     mongoose.connect(cfg.db.mongo.uri);
     const connection = mongoose.connection;
@@ -35,7 +39,9 @@ module.exports = {
         InstanceType: InstanceType,
         ScalingGroup: ScalingGroup,
         ScalingConfiguration: ScalingConfiguration,
-        ScalingRule: ScalingRule
+        ScalingRule: ScalingRule,
+        ScalingActivity: ScalingActivity,
+        ScalingInstance: ScalingInstance
       });
     });
   }

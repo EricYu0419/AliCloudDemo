@@ -62,6 +62,7 @@ const instanceTypesReflash = () => {
     console.timeEnd("InstanceTypesReflash");
     console.info(`InstanceTypesReflash end with error:`);
     console.error(err);
+    return;
   });
   ecs.describeInstanceTypes((err, res) => {
     if (err) return epError.emit("error", err);
@@ -123,6 +124,7 @@ const allReflash = () => {
           regions,
           (e, cb) => {
             if (e && e.RegionId) {
+              console.time("Region_" + e.RegionId);
               const epRegionData = new EP();
               epRegionData.all(
                 "Instances",
@@ -133,6 +135,8 @@ const allReflash = () => {
                 "ScalingGroups",
                 "ScalingConfigurations",
                 "ScalingRules",
+                "ScalingActivities",
+                "ScalingInstances",
                 (
                   Instances,
                   Zones,
@@ -141,7 +145,9 @@ const allReflash = () => {
                   InstanceTypeFamilies,
                   ScalingGroups,
                   ScalingConfigurations,
-                  ScalingRules
+                  ScalingRules,
+                  ScalingActivities,
+                  ScalingInstances
                 ) => {
                   const epRegionInstance = new EP();
                   epRegionInstance.all(
@@ -149,12 +155,14 @@ const allReflash = () => {
                     "ScalingGroups",
                     "ScalingConfigurations",
                     "ScalingRules",
+                    "ScalingInstances",
                     "RegionData",
                     (
                       Instances,
                       ScalingGroups,
                       ScalingConfigurations,
                       ScalingRules,
+                      ScalingInstances,
                       RegionDate
                     ) => {
                       cb();
@@ -184,7 +192,9 @@ const allReflash = () => {
 
                           if (instance) {
                             console.info(
-                              `Instance id: ${instance.InstanceId} update success`
+                              `Instance id: ${
+                                instance.InstanceId
+                              } update success`
                             );
                             epInstances.emit("insUpdate", true);
                           } else {
@@ -295,47 +305,77 @@ const allReflash = () => {
                   } else {
                     epRegionInstance.emit("ScalingRules", false);
                   }
+                  if (ScalingInstances.length > 0) {
+                    const epScalingInstances = new EP();
+                    epScalingInstances.after(
+                      "insUpdate",
+                      ScalingInstances.length,
+                      insUpdate => {
+                        epRegionInstance.emit("ScalingInstances", true);
+                      }
+                    );
+                    ScalingInstances.forEach(ins => {
+                      db.ScalingInstance.findOneAndUpdate(
+                        { InstanceId: ins.InstanceId },
+                        ins,
+                        { new: true, upsert: true },
+                        (err, scalingInstance) => {
+                          if (err) return epError.emit("error", err);
+
+                          if (scalingInstance) {
+                            console.info(
+                              `ScalingInstanceId: ${
+                                scalingInstance.InstanceId
+                              } update success`
+                            );
+                            epScalingInstances.emit("insUpdate", true);
+                          } else {
+                            epScalingInstances.emit("insUpdate", false);
+                          }
+                        }
+                      );
+                    });
+                  } else {
+                    epRegionInstance.emit("ScalingInstances", false);
+                  }
 
                   /*
                    * 保存Region信息
                    */
-                  db.Region.findOne({ RegionId: e.RegionId }, (err, region) => {
-                    if (err) return epError.emit("error", err);
-                    // console.info(err, region);
-                    if (!region) {
-                      region = new db.Region(e);
-                    }
-                    if (
-                      !region.UpdateAt ||
-                      (new Date() - region.UpdateAt.getTime()) / (60 * 1000) >
-                        10
-                    ) {
-                      region.UpdateAt = new Date();
-                      region.RegionData = {
-                        Instances: Instances.map(e => {
-                          return e.InstanceId;
-                        }),
-                        Zones: Zones,
-                        Disks: Disks,
-                        Images: Images,
-                        InstanceTypeFamilies: InstanceTypeFamilies,
-                        ScalingGroups: ScalingGroups,
-                        ScalingConfigurations: ScalingConfigurations,
-                        ScalingRules: ScalingRules
-                      };
-                      // console.info(region);
-                      region.save((err, res) => {
-                        if (err) return epError.emit("error", err);
-
+                  e.UpdateAt = new Date();
+                  e.RegionData = {
+                    Instances: Instances.map(e => {
+                      return e.InstanceId;
+                    }),
+                    Zones: Zones,
+                    Disks: Disks,
+                    Images: Images,
+                    InstanceTypeFamilies: InstanceTypeFamilies,
+                    ScalingGroups: ScalingGroups,
+                    ScalingConfigurations: ScalingConfigurations,
+                    ScalingRules: ScalingRules,
+                    ScalingActivities: ScalingActivities,
+                    ScalingInstances: ScalingInstances
+                  };
+                  db.Region.findOneAndUpdate(
+                    { RegionId: e.RegionId },
+                    e,
+                    { new: true, upsert: true },
+                    (err, region) => {
+                      if (err) return epError.emit("error", err);
+                      // console.info(err, region);
+                      if (region) {
                         console.info(
-                          `region id: ${res.RegionId} update success`
+                          `region id: ${region.RegionId} update success`
                         );
+                        console.timeEnd("Region_" + e.RegionId);
+
                         epRegionInstance.emit("RegionData", true);
-                      });
-                    } else {
-                      cb();
+                      } else {
+                        epRegionInstance.emit("RegionData", false);
+                      }
                     }
-                  });
+                  );
                 }
               );
               ecs.describeInstances(
@@ -398,25 +438,91 @@ const allReflash = () => {
                 }
               );
               ess.describeScalingGroups(
-                { RegionId: e.RegionId },
+                { RegionId: e.RegionId, PageNumber: 1, PageSize: 50 },
                 (err, res) => {
                   if (err) return epError.emit("error", err);
                   if (
                     res &&
                     res.ScalingGroups &&
-                    res.ScalingGroups.ScalingGroup
+                    res.ScalingGroups.ScalingGroup &&
+                    res.ScalingGroups.ScalingGroup.length > 0
                   ) {
-                    epRegionData.emit(
-                      "ScalingGroups",
-                      res.ScalingGroups.ScalingGroup
-                    );
+                    const groups = res.ScalingGroups.ScalingGroup;
+                    const epGroups = new EP();
+                    epGroups.after("Activities", groups.length, Activities => {
+                      epRegionData.emit("ScalingGroups", groups);
+                      let ScalingActivities = [];
+                      Activities.forEach(activities => {
+                        if (activities.length > 0) {
+                          activities.forEach(activity => {
+                            ScalingActivities.push(activity);
+                          });
+                        }
+                      });
+                      epRegionData.emit("ScalingActivities", ScalingActivities);
+                    });
+                    groups.forEach(group => {
+                      ess.describeScalingActivities(
+                        {
+                          RegionId: e.RegionId,
+                          ScalingGroupId: group.ScalingGroupId,
+                          PageNumber: 1,
+                          PageSize: 50
+                        },
+                        (err, res) => {
+                          if (err) return epError.emit("error", err);
+                          if (
+                            res &&
+                            res.ScalingActivities &&
+                            res.ScalingActivities.ScalingActivity &&
+                            res.ScalingActivities.ScalingActivity.length > 0
+                          ) {
+                            const activities =
+                              res.ScalingActivities.ScalingActivity;
+                            const epScalingActivities = new EP();
+                            epScalingActivities.after(
+                              "updates",
+                              activities.length,
+                              updates => {
+                                epGroups.emit("Activities", true);
+                              }
+                            );
+                            activities.forEach(activity => {
+                              db.ScalingActivity.findOneAndUpdate(
+                                {
+                                  ScalingActivityId: activity.ScalingActivityId
+                                },
+                                activities,
+                                { new: true, upsert: true },
+                                (err, newActivity) => {
+                                  if (err) return epError.emit("error", err);
+                                  if (newActivity) {
+                                    console.info(
+                                      `ScalingActivityId: ${
+                                        newActivity.ScalingActivityId
+                                      } update success`
+                                    );
+                                    epScalingActivities.emit("updates", true);
+                                  } else {
+                                    epScalingActivities.emit("updates", false);
+                                  }
+                                }
+                              );
+                            });
+                          } else {
+                            epGroups.emit("Activities", []);
+                          }
+                        }
+                      );
+                    });
                   } else {
                     epRegionData.emit("ScalingGroups", []);
+                    epRegionData.emit("ScalingActivities", []);
                   }
                 }
               );
               ess.describeScalingConfigurations(
-                { RegionId: e.RegionId },
+                { RegionId: e.RegionId, PageNumber: 1, PageSize: 50 },
                 (err, res) => {
                   if (err) return epError.emit("error", err);
                   if (
@@ -444,12 +550,31 @@ const allReflash = () => {
                   epRegionData.emit("ScalingRules", []);
                 }
               });
+              ess.describeScalingInstances(
+                { RegionId: e.RegionId, PageNumber: 1, PageSize: 50 },
+                (err, res) => {
+                  if (err) return epError.emit("error", err);
+                  if (
+                    res &&
+                    res.ScalingInstances &&
+                    res.ScalingInstances.ScalingInstance
+                  ) {
+                    epRegionData.emit(
+                      "ScalingInstances",
+                      res.ScalingInstances.ScalingInstance
+                    );
+                  } else {
+                    epRegionData.emit("ScalingInstances", []);
+                  }
+                }
+              );
             } else {
               cb();
             }
           },
           function(err) {
             if (err) return epError.emit("error", err);
+            console.timeEnd("AllReflash");
             console.info("allReflash complete");
           }
         );
@@ -541,11 +666,97 @@ const instanceStatusReflash = () => {
     }
   );
 };
+const scalingInstanceReflash = () => {
+  console.time("ScalingInstanceReflash");
+  console.info(`ScalingInstanceReflash start at ${new Date().toISOString()}`);
+  const epError = new EP();
+  epError.once("error", error => {
+    console.timeEnd("ScalingInstanceReflash");
+    console.info("ScalingInstanceReflash end with error:");
+    console.error(error);
+  });
+  db.Region.$where("this.RegionData.ScalingInstances.length>0").exec(
+    (err, regions) => {
+      if (err) {
+        return epError.emit("error", err);
+      }
+      if (regions && regions.length > 0) {
+        const epRegions = new EP();
+        epRegions.after("regions", regions.length, regions => {
+          console.timeEnd("ScalingInstanceReflash");
+          console.info(
+            `ScalingInstanceReflash end with ${regions.length} regions`
+          );
+        });
+        regions.forEach(region => {
+          ess.describeScalingInstances(
+            { RegionId: region.RegionId, PageNumber: 1, PageSize: 50 },
+            (err, res) => {
+              if (err) {
+                return epError.emit("error", err);
+              }
+              if (
+                res &&
+                res.ScalingInstances &&
+                res.ScalingInstances.ScalingInstance &&
+                res.ScalingInstances.ScalingInstance.length > 0
+              ) {
+                const scalingInstances = res.ScalingInstances.ScalingInstance;
+                const epInstances = new EP();
+                epInstances.after(
+                  "scalingInstances",
+                  scalingInstances.length,
+                  scalingInstances => {
+                    epRegions.emit("regions", true);
+                  }
+                );
+                scalingInstances.forEach(instance => {
+                  instance.UpdateAt = new Date();
+                  db.ScalingInstance.findOneAndUpdate(
+                    { InstanceId: instance.InstanceId },
+                    instance,
+                    { new: true, upsert: true },
+                    (err, instance) => {
+                      if (err) {
+                        return epError.emit("error", err);
+                      }
+                      if (instance) {
+                        console.info(
+                          `ScalingInstanceId: ${
+                            instance.InstanceId
+                          }，LifecycleState：${
+                            instance.LifecycleState
+                          }，Health: ${instance.HealthStatus}`
+                        );
+                        epInstances.emit("scalingInstances", true);
+                      } else {
+                        epInstances.emit("scalingInstances", false);
+                      }
+                    }
+                  );
+                });
+              } else {
+                epRegions.emit("regions", false);
+              }
+            }
+          );
+        });
+      } else {
+        console.timeEnd("ScalingInstanceReflash");
+        console.info("ScalingInstanceReflash end with empty regions");
+      }
+    }
+  );
+};
 
 const tasks = {
   AllReflash: later.setInterval(allReflash, sched.every15mins),
   InstanceStatusReflash: later.setInterval(
     instanceStatusReflash,
+    sched.every1mins
+  ),
+  ScalingInstancesReflash: later.setInterval(
+    scalingInstanceReflash,
     sched.every1mins
   ),
   InstanceTypesReflash: later.setInterval(instanceTypesReflash, sched.everyday)

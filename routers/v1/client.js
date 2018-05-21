@@ -48,9 +48,27 @@ router
         return next();
       });
     },
-    async (ctx) => {
+    async (ctx, next) => {
+      return db.ScalingConfiguration.find().then(res => {
+        ctx.body.ScalingConfigurations = res;
+        return next();
+      });
+    },
+    async (ctx, next) => {
+      return db.ScalingRule.find().then(res => {
+        ctx.body.ScalingRules = res;
+        return next();
+      });
+    },
+    async (ctx, next) => {
       return db.Region.find().then(res => {
         ctx.body.Regions = res;
+        return next();
+      });
+    },
+    async ctx => {
+      return db.InstanceType.find().then(res => {
+        ctx.body.InstanceTypes = res;
       });
     }
   );
