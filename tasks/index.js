@@ -11,6 +11,12 @@ const ecs = new ALY.ECS({
   endpoint: `https://ecs.aliyuncs.com`,
   apiVersion: "2014-05-26"
 });
+const ess = new ALY.ESS({
+  accessKeyId: cfgAly.accessKeyId,
+  secretAccessKey: cfgAly.accessKeySecret,
+  endpoint: `https://ess.aliyuncs.com`,
+  apiVersion: "2014-08-28"
+});
 later.date.UTC();
 const sched = {
   every1mins: later.parse
@@ -105,7 +111,7 @@ const allReflash = () => {
   epError.once("error", error => {
     console.timeEnd("AllReflash");
     console.info(`allReflash end with error:`);
-    console.error(err);
+    console.error(error);
   });
   ecs.describeRegions((err, res) => {
     if (err) {
@@ -123,12 +129,34 @@ const allReflash = () => {
                 "Zones",
                 "Disks",
                 "Images",
-                (Instances, Zones, Disks, Images) => {
+                "InstanceTypeFamilies",
+                "ScalingGroups",
+                "ScalingConfigurations",
+                "ScalingRules",
+                (
+                  Instances,
+                  Zones,
+                  Disks,
+                  Images,
+                  InstanceTypeFamilies,
+                  ScalingGroups,
+                  ScalingConfigurations,
+                  ScalingRules
+                ) => {
                   const epRegionInstance = new EP();
                   epRegionInstance.all(
                     "Instances",
+                    "ScalingGroups",
+                    "ScalingConfigurations",
+                    "ScalingRules",
                     "RegionData",
-                    (Instances, RegionDate) => {
+                    (
+                      Instances,
+                      ScalingGroups,
+                      ScalingConfigurations,
+                      ScalingRules,
+                      RegionDate
+                    ) => {
                       cb();
                     }
                   );
@@ -146,38 +174,126 @@ const allReflash = () => {
                       }
                     );
                     Instances.forEach(ins => {
-                      db.Instance.findOne(
+                      ins.UpdateAt = new Date();
+                      db.Instance.findOneAndUpdate(
                         { InstanceId: ins.InstanceId },
+                        ins,
+                        { new: true, upsert: true },
                         (err, instance) => {
                           if (err) return epError.emit("error", err);
 
-                          if (!instance) {
-                            instance = new db.Instance(ins);
-                          }
-                          if (
-                            !instance.UpdateAt ||
-                            (new Date() - instance.UpdateAt.getTime()) /
-                              (60 * 1000) >
-                              10
-                          ) {
-                            instance.UpdateAt = new Date();
-                            instance.save((err, res) => {
-                              if (err) return epError.emit("error", err);
-
-                              console.info(
-                                `Instance id: ${res.InstanceId} update success`
-                              );
-                              epInstances.emit("insUpdate", true);
-                            });
+                          if (instance) {
+                            console.info(
+                              `Instance id: ${instance.InstanceId} update success`
+                            );
+                            epInstances.emit("insUpdate", true);
                           } else {
                             epInstances.emit("insUpdate", false);
                           }
                         }
                       );
-                      epInstances.emit("insUpdate", true);
                     });
                   } else {
                     epRegionInstance.emit("Instances", false);
+                  }
+                  if (ScalingGroups.length > 0) {
+                    const epScalingGroups = new EP();
+                    epScalingGroups.after(
+                      "insUpdate",
+                      ScalingGroups.length,
+                      insUpdate => {
+                        epRegionInstance.emit("ScalingGroups", true);
+                      }
+                    );
+                    ScalingGroups.forEach(ins => {
+                      db.ScalingGroup.findOneAndUpdate(
+                        { ScalingGroupId: ins.ScalingGroupId },
+                        ins,
+                        { new: true, upsert: true },
+                        (err, scalingGroup) => {
+                          if (err) return epError.emit("error", err);
+
+                          if (scalingGroup) {
+                            console.info(
+                              `ScalingGroup id: ${
+                                scalingGroup.ScalingGroupId
+                              } update success`
+                            );
+                            epScalingGroups.emit("insUpdate", true);
+                          } else {
+                            epScalingGroups.emit("insUpdate", false);
+                          }
+                        }
+                      );
+                    });
+                  } else {
+                    epRegionInstance.emit("ScalingGroups", false);
+                  }
+                  if (ScalingConfigurations.length > 0) {
+                    const epScalingConfigurations = new EP();
+                    epScalingConfigurations.after(
+                      "insUpdate",
+                      ScalingConfigurations.length,
+                      insUpdate => {
+                        epRegionInstance.emit("ScalingConfigurations", true);
+                      }
+                    );
+                    ScalingConfigurations.forEach(ins => {
+                      db.ScalingConfiguration.findOneAndUpdate(
+                        { ScalingConfigurationId: ins.ScalingConfigurationId },
+                        ins,
+                        { new: true, upsert: true },
+                        (err, scalingConfiguration) => {
+                          if (err) return epError.emit("error", err);
+
+                          if (scalingConfiguration) {
+                            console.info(
+                              `ScalingConfiguration id: ${
+                                scalingConfiguration.ScalingConfigurationId
+                              } update success`
+                            );
+                            epScalingConfigurations.emit("insUpdate", true);
+                          } else {
+                            epScalingConfigurations.emit("insUpdate", false);
+                          }
+                        }
+                      );
+                    });
+                  } else {
+                    epRegionInstance.emit("ScalingConfigurations", false);
+                  }
+                  if (ScalingRules.length > 0) {
+                    const epScalingRules = new EP();
+                    epScalingRules.after(
+                      "insUpdate",
+                      ScalingRules.length,
+                      insUpdate => {
+                        epRegionInstance.emit("ScalingRules", true);
+                      }
+                    );
+                    ScalingRules.forEach(ins => {
+                      db.ScalingRule.findOneAndUpdate(
+                        { ScalingRuleId: ins.ScalingRuleId },
+                        ins,
+                        { new: true, upsert: true },
+                        (err, scalingRule) => {
+                          if (err) return epError.emit("error", err);
+
+                          if (scalingRule) {
+                            console.info(
+                              `ScalingRule id: ${
+                                scalingRule.ScalingRuleId
+                              } update success`
+                            );
+                            epScalingRules.emit("insUpdate", true);
+                          } else {
+                            epScalingRules.emit("insUpdate", false);
+                          }
+                        }
+                      );
+                    });
+                  } else {
+                    epRegionInstance.emit("ScalingRules", false);
                   }
 
                   /*
@@ -201,7 +317,11 @@ const allReflash = () => {
                         }),
                         Zones: Zones,
                         Disks: Disks,
-                        Images: Images
+                        Images: Images,
+                        InstanceTypeFamilies: InstanceTypeFamilies,
+                        ScalingGroups: ScalingGroups,
+                        ScalingConfigurations: ScalingConfigurations,
+                        ScalingRules: ScalingRules
                       };
                       // console.info(region);
                       region.save((err, res) => {
@@ -277,6 +397,53 @@ const allReflash = () => {
                   }
                 }
               );
+              ess.describeScalingGroups(
+                { RegionId: e.RegionId },
+                (err, res) => {
+                  if (err) return epError.emit("error", err);
+                  if (
+                    res &&
+                    res.ScalingGroups &&
+                    res.ScalingGroups.ScalingGroup
+                  ) {
+                    epRegionData.emit(
+                      "ScalingGroups",
+                      res.ScalingGroups.ScalingGroup
+                    );
+                  } else {
+                    epRegionData.emit("ScalingGroups", []);
+                  }
+                }
+              );
+              ess.describeScalingConfigurations(
+                { RegionId: e.RegionId },
+                (err, res) => {
+                  if (err) return epError.emit("error", err);
+                  if (
+                    res &&
+                    res.ScalingConfigurations &&
+                    res.ScalingConfigurations.ScalingConfiguration
+                  ) {
+                    epRegionData.emit(
+                      "ScalingConfigurations",
+                      res.ScalingConfigurations.ScalingConfiguration
+                    );
+                  } else {
+                    epRegionData.emit("ScalingConfigurations", []);
+                  }
+                }
+              );
+              ess.describeScalingRules({ RegionId: e.RegionId }, (err, res) => {
+                if (err) return epError.emit("error", err);
+                if (res && res.ScalingRules && res.ScalingRules.ScalingRule) {
+                  epRegionData.emit(
+                    "ScalingRules",
+                    res.ScalingRules.ScalingRule
+                  );
+                } else {
+                  epRegionData.emit("ScalingRules", []);
+                }
+              });
             } else {
               cb();
             }
@@ -387,5 +554,5 @@ const tasks = {
 module.exports = tasks;
 
 // db.Init(model => {
-//   instanceTypesReflash();
+//   allReflash();
 // });

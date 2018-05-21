@@ -39,6 +39,12 @@ router
       ctx.body = { Regions: res };
       return next();
     });
+  })
+  .get("/essList", async (ctx, next) => {
+    return db.ScalingGroup.find().then(res => {
+      ctx.body = { ScalingGroups: res };
+      return next();
+    });
   });
 
 module.exports = router;
