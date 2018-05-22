@@ -11,6 +11,16 @@ const ecs = new ALY.ECS({
 //   console.info(res.Vpcs.Vpc);
 // });
 
-ecs.describeEipAddresses({ RegionId: "cn-shenzhen" ,PageNumber:1,PageSize:50}, (err, res) => {
-  console.info(res.EipAddresses.EipAddress);
-});
+// ecs.describeEipAddresses(
+//   { RegionId: "cn-shenzhen", PageNumber: 1, PageSize: 50 },
+//   (err, res) => {
+//     console.info(res.EipAddresses.EipAddress);
+//   }
+// );
+
+ecs.convertNatPublicIpToEip(
+  { RegionId: "cn-shenzhen", InstanceId: "i-wz9ajwdnsg4s1kw9mbgq" },
+  (err, res) => {
+    console.info(err,res);
+  }
+);

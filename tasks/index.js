@@ -854,6 +854,92 @@ const scalingInstanceReflash = () => {
   });
 };
 
+const eipAddressesReflash = () => {
+  console.time("EipAddressesReflash");
+  console.info(`EipAddressesReflash start at ${new Date().toISOString()}`);
+  const epError = new EP();
+  epError.once("error", error => {
+    console.timeEnd("EipAddressesReflash");
+    console.info("EipAddressesReflash end with error:");
+    console.error(error);
+  });
+  db.EipAddress.remove(err => {
+    if (err) epError.emit("error", err);
+    console.info(`EipAddressess Clear Up`);
+  });
+  db.Region.find((err, regions) => {
+    if (err) {
+      return epError.emit("error", err);
+    }
+    if (regions && regions.length > 0) {
+      const epEipRegions = new EP();
+      epEipRegions.after("regions", regions.length, regions => {
+        console.timeEnd("EipAddressesReflash");
+        console.info(`EipAddressesReflash end with ${regions.length} regions`);
+      });
+      regions.forEach(region => {
+        const epRegionDatas = new EP();
+        epRegionDatas.all("EipAddresses", EipAddresses => {
+          region.RegionData.EipAddresses = EipAddresses;
+          region.save((err, res) => {
+            if (err) return epError.emit("error", err);
+            console.info(`regionId:${region.RegionId} EipAddresses update`);
+            epEipRegions.emit("regions", true);
+          });
+        });
+        ecs.describeEipAddresses(
+          { RegionId: region.RegionId, PageNumber: 1, PageSize: 50 },
+          (err, res) => {
+            if (err) {
+              return epError.emit("error", err);
+            }
+            if (
+              res &&
+              res.EipAddresses &&
+              res.EipAddresses.EipAddress &&
+              res.EipAddresses.EipAddress.length > 0
+            ) {
+              const eipAddresss = res.EipAddresses.EipAddress;
+              const epEipAddress = new EP();
+              epEipAddress.after(
+                "eipAddresss",
+                eipAddresss.length,
+                EipAddresses => {
+                  epRegionDatas.emit("EipAddresses", eipAddresss);
+                }
+              );
+              eipAddresss.forEach(eipAddress => {
+                eipAddress.UpdateAt = new Date();
+                db.EipAddress.findOneAndUpdate(
+                  { AllocationId: eipAddress.AllocationId },
+                  eipAddress,
+                  { new: true, upsert: true },
+                  (err, eipAddress) => {
+                    if (err) {
+                      return epError.emit("error", err);
+                    }
+                    if (eipAddress) {
+                      console.info(`AllocationId: ${eipAddress.AllocationId}`);
+                      epEipAddress.emit("eipAddresss", true);
+                    } else {
+                      epEipAddress.emit("eipAddresss", false);
+                    }
+                  }
+                );
+              });
+            } else {
+              epRegionDatas.emit("Instances", []);
+            }
+          }
+        );
+      });
+    } else {
+      console.timeEnd("EipAddressesReflash");
+      console.info("EipAddressesReflash end with empty regions");
+    }
+  });
+};
+
 const tasks = {
   AllReflash: later.setInterval(allReflash, sched.every15mins),
   InstanceStatusReflash: later.setInterval(
@@ -864,6 +950,7 @@ const tasks = {
     scalingInstanceReflash,
     sched.every1mins
   ),
+  EipAddressesReflash: later.setInterval(eipAddressesReflash, sched.every1mins),
   InstanceTypesReflash: later.setInterval(instanceTypesReflash, sched.everyday)
 };
 
@@ -872,9 +959,10 @@ module.exports = {
   InstanceStatusReflash: instanceTypesReflash,
   ScalingInstanceReflash: scalingInstanceReflash,
   InstanceTypesReflash: instanceStatusReflash,
+  EipAddressesReflash: eipAddressesReflash,
   AllReflash: allReflash
 };
 
-// db.Init(model => {
-//   instanceStatusReflash();
-// });
+db.Init(model => {
+  eipAddressesReflash();
+});
