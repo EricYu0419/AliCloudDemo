@@ -61,6 +61,18 @@ router
       });
     },
     async (ctx, next) => {
+      return db.ScalingActivity.find().then(res => {
+        ctx.body.ScalingActivities = res;
+        return next();
+      });
+    },
+    async (ctx, next) => {
+      return db.ScalingInstance.find().then(res => {
+        ctx.body.ScalingInstances = res;
+        return next();
+      });
+    },
+    async (ctx, next) => {
       return db.Region.find().then(res => {
         ctx.body.Regions = res;
         return next();
@@ -69,6 +81,21 @@ router
     async ctx => {
       return db.InstanceType.find().then(res => {
         ctx.body.InstanceTypes = res;
+      });
+    }
+  )
+  .get(
+    "/eipList",
+    async (ctx, next) => {
+      return db.Region.find().then(res => {
+        ctx.body.Regions = res;
+        return next();
+      });
+    },
+    async (ctx, next) => {
+      return db.EipAddress.find().then(res => {
+        ctx.body.EipAddresses = res;
+        return next();
       });
     }
   );

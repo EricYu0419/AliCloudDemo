@@ -178,6 +178,9 @@ const allReflash = () => {
                   /*
                    * 保存Instance信息 
                    */
+                  db.Instance.remove(err => {
+                    if (err) return epError.emit("error", err);
+                  });
                   if (Instances.length > 0) {
                     const epInstances = new EP();
                     epInstances.after(
@@ -523,7 +526,10 @@ const allReflash = () => {
                   res.EipAddresses.EipAddress &&
                   res.EipAddresses.EipAddress.length > 0
                 ) {
-                  epRegionData.emit("EipAddresses", res.EipAddresses.EipAddress);
+                  epRegionData.emit(
+                    "EipAddresses",
+                    res.EipAddresses.EipAddress
+                  );
                 } else {
                   epRegionData.emit("EipAddresses", []);
                 }
@@ -683,79 +689,77 @@ const instanceStatusReflash = () => {
     console.info("InstanceStatusReflash end with error:");
     console.error(error);
   });
-  db.Region.$where("this.RegionData.Instances.length>0").exec(
-    (err, regions) => {
-      if (err) {
-        return epError.emit("error", err);
-      }
-      if (regions && regions.length > 0) {
-        const epInRegions = new EP();
-        epInRegions.after("regions", regions.length, regions => {
-          console.timeEnd("InstanceStatusReflash");
-          console.info(
-            `InstanceStatusReflash end with ${regions.length} regions`
-          );
-        });
-        regions.forEach(region => {
-          ecs.describeInstanceStatus(
-            { RegionId: region.RegionId, PageNumber: 1, PageSize: 50 },
-            (err, res) => {
-              if (err) {
-                return epError.emit("error", err);
-              }
-              if (
-                res &&
-                res.InstanceStatuses &&
-                res.InstanceStatuses.InstanceStatus &&
-                res.InstanceStatuses.InstanceStatus.length > 0
-              ) {
-                const instanceStatuses = res.InstanceStatuses.InstanceStatus;
-                const epInstances = new EP();
-                epInstances.after(
-                  "instanceStatuses",
-                  instanceStatuses.length,
-                  instanceStatuses => {
-                    epInRegions.emit("regions", true);
+  db.Instance.remove(err => {
+    if (err) epError.emit("error", err);
+    console.info(`Instances Clear Up`);
+  });
+  db.Region.find((err, regions) => {
+    if (err) {
+      return epError.emit("error", err);
+    }
+    if (regions && regions.length > 0) {
+      const epInRegions = new EP();
+      epInRegions.after("regions", regions.length, regions => {
+        console.timeEnd("InstanceStatusReflash");
+        console.info(
+          `InstanceStatusReflash end with ${regions.length} regions`
+        );
+      });
+      regions.forEach(region => {
+        ecs.describeInstances(
+          { RegionId: region.RegionId, PageNumber: 1, PageSize: 50 },
+          (err, res) => {
+            if (err) {
+              return epError.emit("error", err);
+            }
+            if (
+              res &&
+              res.Instances &&
+              res.Instances.Instance &&
+              res.Instances.Instance.length > 0
+            ) {
+              const instanceStatuses = res.Instances.Instance;
+              const epInstances = new EP();
+              epInstances.after(
+                "instanceStatuses",
+                instanceStatuses.length,
+                instanceStatuses => {
+                  epInRegions.emit("regions", true);
+                }
+              );
+              instanceStatuses.forEach(instanceStatus => {
+                db.Instance.findOneAndUpdate(
+                  { InstanceId: instanceStatus.InstanceId },
+                  instanceStatus,
+                  { new: true, upsert: true },
+                  (err, instance) => {
+                    if (err) {
+                      return epError.emit("error", err);
+                    }
+                    if (instance) {
+                      console.info(
+                        `InstanceId: ${instance.InstanceId}，Status：${
+                          res.Status
+                        }`
+                      );
+                      epInstances.emit("instanceStatuses", true);
+                    } else {
+                      epInstances.emit("instanceStatuses", false);
+                    }
                   }
                 );
-                instanceStatuses.forEach(instanceStatus => {
-                  db.Instance.findOne(
-                    { InstanceId: instanceStatus.InstanceId },
-                    (err, instance) => {
-                      if (err) {
-                        return epError.emit("error", err);
-                      }
-                      if (instance) {
-                        instance.Status = instanceStatus.Status;
-                        instance.save((err, res) => {
-                          if (err) {
-                            return epError.emit("error", err);
-                          }
-                          console.info(
-                            `InstanceId: ${res.InstanceId}，Status：${
-                              res.Status
-                            }`
-                          );
-                          epInstances.emit("instanceStatuses", true);
-                        });
-                      } else {
-                        epInstances.emit("instanceStatuses", false);
-                      }
-                    }
-                  );
-                });
-              } else {
-                epInRegions.emit("regions", false);
-              }
+              });
+            } else {
+              epInRegions.emit("regions", false);
             }
-          );
-        });
-      } else {
-        console.timeEnd("InstanceStatusReflash");
-        console.info("InstanceStatusReflash end with empty regions");
-      }
+          }
+        );
+      });
+    } else {
+      console.timeEnd("InstanceStatusReflash");
+      console.info("InstanceStatusReflash end with empty regions");
     }
-  );
+  });
 };
 const scalingInstanceReflash = () => {
   console.time("ScalingInstanceReflash");
@@ -766,78 +770,88 @@ const scalingInstanceReflash = () => {
     console.info("ScalingInstanceReflash end with error:");
     console.error(error);
   });
-  db.Region.$where("this.RegionData.ScalingInstances.length>0").exec(
-    (err, regions) => {
-      if (err) {
-        return epError.emit("error", err);
-      }
-      if (regions && regions.length > 0) {
-        const epScRegions = new EP();
-        epScRegions.after("regions", regions.length, regions => {
-          console.timeEnd("ScalingInstanceReflash");
-          console.info(
-            `ScalingInstanceReflash end with ${regions.length} regions`
-          );
+  db.ScalingInstance.remove(err => {
+    if (err) epError.emit("error", err);
+    console.info(`ScalingInstances Clear Up`);
+  });
+  db.Region.find((err, regions) => {
+    if (err) {
+      return epError.emit("error", err);
+    }
+    if (regions && regions.length > 0) {
+      const epScRegions = new EP();
+      epScRegions.after("regions", regions.length, regions => {
+        console.timeEnd("ScalingInstanceReflash");
+        console.info(
+          `ScalingInstanceReflash end with ${regions.length} regions`
+        );
+      });
+      regions.forEach(region => {
+        const epRegionDatas = new EP();
+        epRegionDatas.all("Instances", ScalingInstances => {
+          region.RegionData.ScalingInstances = ScalingInstances;
+          region.save((err, res) => {
+            if (err) return epError.emit("error", err);
+            epScRegions.emit("regions", true);
+          });
         });
-        regions.forEach(region => {
-          ess.describeScalingInstances(
-            { RegionId: region.RegionId, PageNumber: 1, PageSize: 50 },
-            (err, res) => {
-              if (err) {
-                return epError.emit("error", err);
-              }
-              if (
-                res &&
-                res.ScalingInstances &&
-                res.ScalingInstances.ScalingInstance &&
-                res.ScalingInstances.ScalingInstance.length > 0
-              ) {
-                const scalingInstances = res.ScalingInstances.ScalingInstance;
-                const epInstances = new EP();
-                epInstances.after(
-                  "scalingInstances",
-                  scalingInstances.length,
-                  scalingInstances => {
-                    epScRegions.emit("regions", true);
+        ess.describeScalingInstances(
+          { RegionId: region.RegionId, PageNumber: 1, PageSize: 50 },
+          (err, res) => {
+            if (err) {
+              return epError.emit("error", err);
+            }
+            if (
+              res &&
+              res.ScalingInstances &&
+              res.ScalingInstances.ScalingInstance &&
+              res.ScalingInstances.ScalingInstance.length > 0
+            ) {
+              const scalingInstances = res.ScalingInstances.ScalingInstance;
+              const epInstances = new EP();
+              epInstances.after(
+                "scalingInstances",
+                scalingInstances.length,
+                Instances => {
+                  epRegionDatas.emit("Instances", scalingInstances);
+                }
+              );
+              scalingInstances.forEach(instance => {
+                instance.UpdateAt = new Date();
+                db.ScalingInstance.findOneAndUpdate(
+                  { InstanceId: instance.InstanceId },
+                  instance,
+                  { new: true, upsert: true },
+                  (err, instance) => {
+                    if (err) {
+                      return epError.emit("error", err);
+                    }
+                    if (instance) {
+                      console.info(
+                        `ScalingInstanceId: ${
+                          instance.InstanceId
+                        }，LifecycleState：${
+                          instance.LifecycleState
+                        }，Health: ${instance.HealthStatus}`
+                      );
+                      epInstances.emit("scalingInstances", true);
+                    } else {
+                      epInstances.emit("scalingInstances", false);
+                    }
                   }
                 );
-                scalingInstances.forEach(instance => {
-                  instance.UpdateAt = new Date();
-                  db.ScalingInstance.findOneAndUpdate(
-                    { InstanceId: instance.InstanceId },
-                    instance,
-                    { new: true, upsert: true },
-                    (err, instance) => {
-                      if (err) {
-                        return epError.emit("error", err);
-                      }
-                      if (instance) {
-                        console.info(
-                          `ScalingInstanceId: ${
-                            instance.InstanceId
-                          }，LifecycleState：${
-                            instance.LifecycleState
-                          }，Health: ${instance.HealthStatus}`
-                        );
-                        epInstances.emit("scalingInstances", true);
-                      } else {
-                        epInstances.emit("scalingInstances", false);
-                      }
-                    }
-                  );
-                });
-              } else {
-                epScRegions.emit("regions", false);
-              }
+              });
+            } else {
+              epRegionDatas.emit("Instances", []);
             }
-          );
-        });
-      } else {
-        console.timeEnd("ScalingInstanceReflash");
-        console.info("ScalingInstanceReflash end with empty regions");
-      }
+          }
+        );
+      });
+    } else {
+      console.timeEnd("ScalingInstanceReflash");
+      console.info("ScalingInstanceReflash end with empty regions");
     }
-  );
+  });
 };
 
 const tasks = {
@@ -853,8 +867,14 @@ const tasks = {
   InstanceTypesReflash: later.setInterval(instanceTypesReflash, sched.everyday)
 };
 
-module.exports = tasks;
+module.exports = {
+  tasks: tasks,
+  InstanceStatusReflash: instanceTypesReflash,
+  ScalingInstanceReflash: scalingInstanceReflash,
+  InstanceTypesReflash: instanceStatusReflash,
+  AllReflash: allReflash
+};
 
 // db.Init(model => {
-//   allReflash();
+//   instanceStatusReflash();
 // });
