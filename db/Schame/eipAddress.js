@@ -1,16 +1,25 @@
 const mongoose = require("mongoose");
 const Schame = new mongoose.Schema({
-  VpcId: { type: String, index: true, unique: true, required: true },
-  VpcName: String,
+  AllocationId: { type: String, index: true, unique: true, required: true },
   RegionId: { type: String, index: true, required: true },
-  CidrBlock: String,
-  CreationTime: Date,
-  Description: String,
-  RegionId: String,
+  IpAddress: String,
+  InstanceId: String,
+  InstanceRegionId: String,
+  InstanceType: String,
+  InternetChargeType: String,
+  ResourceGroupId: String,
+  Descritpion: String,
+  Name: String,
   Status: String,
-  UserCidrs: Object,
-  VRouterId: String,
-  VSwitchIds: Object
+  ChargeType: String,
+  OperationLocks: Object,
+  AvailableRegions: Object,
+  BandwidthPackageId: String,
+  BandwidthPackageType: String,
+  Bandwidth: String,
+  AllocationTime: Date,
+  ExpiredTime: Date,
+  UpdateAt: Date
 });
 
-module.exports = mongoose.model("Vpc", Schame);
+module.exports = mongoose.model("EipAddress", Schame);

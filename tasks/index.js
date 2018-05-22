@@ -137,6 +137,8 @@ const allReflash = () => {
                 "ScalingRules",
                 "ScalingActivities",
                 "ScalingInstances",
+                "Vpcs",
+                "EipAddresses",
                 (
                   Instances,
                   Zones,
@@ -147,7 +149,9 @@ const allReflash = () => {
                   ScalingConfigurations,
                   ScalingRules,
                   ScalingActivities,
-                  ScalingInstances
+                  ScalingInstances,
+                  Vpcs,
+                  EipAddresses
                 ) => {
                   const epRegionInstance = new EP();
                   epRegionInstance.all(
@@ -156,6 +160,8 @@ const allReflash = () => {
                     "ScalingConfigurations",
                     "ScalingRules",
                     "ScalingInstances",
+                    "Vpcs",
+                    "EipAddress",
                     "RegionData",
                     (
                       Instances,
@@ -338,6 +344,64 @@ const allReflash = () => {
                   } else {
                     epRegionInstance.emit("ScalingInstances", false);
                   }
+                  if (Vpcs.length > 0) {
+                    const epVpcs = new EP();
+                    epVpcs.after("insUpdate", Vpcs.length, insUpdate => {
+                      epRegionInstance.emit("Vpcs", true);
+                    });
+                    Vpcs.forEach(ins => {
+                      db.Vpc.findOneAndUpdate(
+                        { VpcId: ins.VpcId },
+                        ins,
+                        { new: true, upsert: true },
+                        (err, vpc) => {
+                          if (err) return epError.emit("error", err);
+
+                          if (vpc) {
+                            console.info(`VpcId: ${vpc.VpcId} update success`);
+                            epVpcs.emit("insUpdate", true);
+                          } else {
+                            epVpcs.emit("insUpdate", false);
+                          }
+                        }
+                      );
+                    });
+                  } else {
+                    epRegionInstance.emit("Vpcs", false);
+                  }
+                  if (EipAddresses.length > 0) {
+                    const epEipAddresses = new EP();
+                    epEipAddresses.after(
+                      "insUpdate",
+                      EipAddresses.length,
+                      insUpdate => {
+                        epRegionInstance.emit("EipAddresses", true);
+                      }
+                    );
+                    EipAddresses.forEach(ins => {
+                      db.EipAddress.findOneAndUpdate(
+                        { AllocationId: ins.AllocationId },
+                        ins,
+                        { new: true, upsert: true },
+                        (err, eipAddress) => {
+                          if (err) return epError.emit("error", err);
+
+                          if (eipAddress) {
+                            console.info(
+                              `AllocationId: ${
+                                eipAddress.AllocationId
+                              } update success`
+                            );
+                            epEipAddresses.emit("insUpdate", true);
+                          } else {
+                            epEipAddresses.emit("insUpdate", false);
+                          }
+                        }
+                      );
+                    });
+                  } else {
+                    epRegionInstance.emit("EipAddresses", false);
+                  }
 
                   /*
                    * 保存Region信息
@@ -354,8 +418,9 @@ const allReflash = () => {
                     ScalingGroups: ScalingGroups,
                     ScalingConfigurations: ScalingConfigurations,
                     ScalingRules: ScalingRules,
-                    ScalingActivities: ScalingActivities,
-                    ScalingInstances: ScalingInstances
+                    ScalingInstances: ScalingInstances,
+                    Vpcs: Vpcs,
+                    EipAddresses: EipAddresses
                   };
                   db.Region.findOneAndUpdate(
                     { RegionId: e.RegionId },
@@ -437,6 +502,32 @@ const allReflash = () => {
                   }
                 }
               );
+              ecs.describeVpcs({ RegionId: e.RegionId }, (err, res) => {
+                if (err) return epError.emit("error", err);
+                if (
+                  res &&
+                  res.Vpcs &&
+                  res.Vpcs.Vpc &&
+                  res.Vpcs.Vpc.length > 0
+                ) {
+                  epRegionData.emit("Vpcs", res.Vpcs.Vpc);
+                } else {
+                  epRegionData.emit("Vpcs", []);
+                }
+              });
+              ecs.describeEipAddresses({ RegionId: e.RegionId }, (err, res) => {
+                if (err) return epError.emit("error", err);
+                if (
+                  res &&
+                  res.EipAddresses &&
+                  res.EipAddresses.EipAddress &&
+                  res.EipAddresses.EipAddress.length > 0
+                ) {
+                  epRegionData.emit("EipAddresses", res.EipAddresses.EipAddress);
+                } else {
+                  epRegionData.emit("EipAddresses", []);
+                }
+              });
               ess.describeScalingGroups(
                 { RegionId: e.RegionId, PageNumber: 1, PageSize: 50 },
                 (err, res) => {
@@ -585,11 +676,11 @@ const allReflash = () => {
 
 const instanceStatusReflash = () => {
   console.time("InstanceStatusReflash");
-  console.info(`instanceStatusReflash start at ${new Date().toISOString()}`);
+  console.info(`InstanceStatusReflash start at ${new Date().toISOString()}`);
   const epError = new EP();
   epError.once("error", error => {
     console.timeEnd("InstanceStatusReflash");
-    console.info("instanceStatusReflash end with error:");
+    console.info("InstanceStatusReflash end with error:");
     console.error(error);
   });
   db.Region.$where("this.RegionData.Instances.length>0").exec(
@@ -598,11 +689,11 @@ const instanceStatusReflash = () => {
         return epError.emit("error", err);
       }
       if (regions && regions.length > 0) {
-        const epRegions = new EP();
-        epRegions.after("regions", regions.length, regions => {
+        const epInRegions = new EP();
+        epInRegions.after("regions", regions.length, regions => {
           console.timeEnd("InstanceStatusReflash");
           console.info(
-            `instanceStatusReflash end with ${regions.length} regions`
+            `InstanceStatusReflash end with ${regions.length} regions`
           );
         });
         regions.forEach(region => {
@@ -624,7 +715,7 @@ const instanceStatusReflash = () => {
                   "instanceStatuses",
                   instanceStatuses.length,
                   instanceStatuses => {
-                    epRegions.emit("regions", true);
+                    epInRegions.emit("regions", true);
                   }
                 );
                 instanceStatuses.forEach(instanceStatus => {
@@ -654,14 +745,14 @@ const instanceStatusReflash = () => {
                   );
                 });
               } else {
-                epRegions.emit("regions", false);
+                epInRegions.emit("regions", false);
               }
             }
           );
         });
       } else {
         console.timeEnd("InstanceStatusReflash");
-        console.info("instanceStatusReflash end with empty regions");
+        console.info("InstanceStatusReflash end with empty regions");
       }
     }
   );
@@ -681,8 +772,8 @@ const scalingInstanceReflash = () => {
         return epError.emit("error", err);
       }
       if (regions && regions.length > 0) {
-        const epRegions = new EP();
-        epRegions.after("regions", regions.length, regions => {
+        const epScRegions = new EP();
+        epScRegions.after("regions", regions.length, regions => {
           console.timeEnd("ScalingInstanceReflash");
           console.info(
             `ScalingInstanceReflash end with ${regions.length} regions`
@@ -707,7 +798,7 @@ const scalingInstanceReflash = () => {
                   "scalingInstances",
                   scalingInstances.length,
                   scalingInstances => {
-                    epRegions.emit("regions", true);
+                    epScRegions.emit("regions", true);
                   }
                 );
                 scalingInstances.forEach(instance => {
@@ -736,7 +827,7 @@ const scalingInstanceReflash = () => {
                   );
                 });
               } else {
-                epRegions.emit("regions", false);
+                epScRegions.emit("regions", false);
               }
             }
           );
