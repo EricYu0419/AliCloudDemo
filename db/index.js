@@ -10,6 +10,8 @@ const ScalingGroup = require("./Schame/scalingGroup");
 const ScalingRule = require("./Schame/scalingRule");
 const ScalingActivity = require("./Schame/scalingActivity");
 const ScalingInstance = require("./Schame/scalingInstance");
+const EipAddress = require("./Schame/eipAddress");
+const Vpc = require("./Schame/vpc");
 
 mongoose.Promise = global.Promise;
 
@@ -23,6 +25,8 @@ module.exports = {
   ScalingRule: ScalingRule,
   ScalingActivity: ScalingActivity,
   ScalingInstance: ScalingInstance,
+  EipAddress: EipAddress,
+  Vpc: Vpc,
   Init: function(callback) {
     mongoose.connect(cfg.db.mongo.uri);
     const connection = mongoose.connection;
@@ -41,7 +45,9 @@ module.exports = {
         ScalingConfiguration: ScalingConfiguration,
         ScalingRule: ScalingRule,
         ScalingActivity: ScalingActivity,
-        ScalingInstance: ScalingInstance
+        ScalingInstance: ScalingInstance,
+        EipAddress: EipAddress,
+        Vpc: Vpc
       });
     });
   }
