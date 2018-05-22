@@ -883,7 +883,7 @@ const eipAddressesReflash = () => {
           region.RegionData.EipAddresses = EipAddresses;
           region.save((err, res) => {
             if (err) return epError.emit("error", err);
-            console.info(`regionId:${region.RegionId} EipAddresses update`);
+            console.info(`regionId:${region.RegionId} ${EipAddresses.length} EipAddresses update`);
             epEipRegions.emit("regions", true);
           });
         });
@@ -963,6 +963,6 @@ module.exports = {
   AllReflash: allReflash
 };
 
-db.Init(model => {
-  eipAddressesReflash();
-});
+// db.Init(model => {
+//   eipAddressesReflash();
+// });

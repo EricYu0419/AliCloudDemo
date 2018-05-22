@@ -25,7 +25,7 @@ router
                 expiresIn: "12h"
               });
               userInfo.expiresAt = new Date(
-                new Date().getTime() + 86400 * 100 / 2
+                new Date().getTime() + (86400 * 1000) / 2
               ).toISOString();
               ctx.body = userInfo;
             } else {

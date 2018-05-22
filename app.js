@@ -10,7 +10,7 @@ const router = require("./routers");
 const bodyParser = require("koa-bodyparser");
 const app = new Koa();
 const db = require("./db");
-const tasks = require('./tasks')
+const tasks = require("./tasks");
 
 const errorHandle = require("./utils/middlewares/errorHandle");
 
@@ -45,9 +45,15 @@ if (!cfg.proxy) {
   db.Init(() => {});
   app.use(bodyParser());
   app.use(router.routes()).use(router.allowedMethods());
-  app.use(async(ctx)=>{
-    console.info(`response ctx.bdoy:${JSON.stringify(ctx.body,null,2)}`);
-  })
+  app.use(async ctx => {
+    console.info(
+      `response ctx.bdoy:${
+        JSON.stringify(ctx.body, null, 2).length > 500
+          ? "big size"
+          : JSON.stringify(ctx.body, null, 2)
+      }`
+    );
+  });
 } else {
   console.info(
     `代理模式：Proxy = > ${

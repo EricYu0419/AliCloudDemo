@@ -28,6 +28,12 @@ router
         return next();
       });
     },
+    async (ctx, next) => {
+      return db.EipAddress.find().then(res => {
+        ctx.body.EipAddresses = res;
+        return next();
+      });
+    },
     async ctx => {
       return db.InstanceType.find().then(res => {
         ctx.body.InstanceTypes = res;
@@ -88,7 +94,15 @@ router
     "/eipList",
     async (ctx, next) => {
       return db.Region.find().then(res => {
-        ctx.body.Regions = res;
+        ctx.body = {
+          Regions: res
+        };
+        return next();
+      });
+    },
+    async (ctx, next) => {
+      return db.Instance.find().then(res => {
+        ctx.body.Instances = res;
         return next();
       });
     },
