@@ -4,6 +4,7 @@ const ALY = require("aliyun-sdk");
 const cfg = require("../../config").alicloud;
 const ecsApis = require("aliyun-sdk/apis/ecs-2014-05-26.json");
 const EP = require("eventproxy");
+const tasks = require("../../tasks");
 const ecs = new ALY.ECS({
   accessKeyId: cfg.accessKeyId,
   secretAccessKey: cfg.accessKeySecret,
@@ -112,6 +113,11 @@ router
         return next();
       });
     }
-  );
+  )
+  .get("/allReflash", async (ctx, next) => {
+    tasks.AllReflash();
+    await next();
+    ctx.body = "success";
+  });
 
 module.exports = router;
