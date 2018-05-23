@@ -106,7 +106,7 @@ const instanceTypesReflash = () => {
   });
 };
 
-const allReflash = () => {
+const allReflash = unClear => {
   console.time("AllReflash");
   const epError = new EP();
   epError.once("error", error => {
@@ -178,9 +178,11 @@ const allReflash = () => {
                   /*
                    * 保存Instance信息 
                    */
-                  db.Instance.remove(err => {
-                    if (err) return epError.emit("error", err);
-                  });
+                  if (!unClear) {
+                    db.Instance.remove(err => {
+                      if (err) return epError.emit("error", err);
+                    });
+                  }
                   if (Instances.length > 0) {
                     const epInstances = new EP();
                     epInstances.after(
@@ -883,7 +885,11 @@ const eipAddressesReflash = () => {
           region.RegionData.EipAddresses = EipAddresses;
           region.save((err, res) => {
             if (err) return epError.emit("error", err);
-            console.info(`regionId:${region.RegionId} ${EipAddresses.length} EipAddresses update`);
+            console.info(
+              `regionId:${region.RegionId} ${
+                EipAddresses.length
+              } EipAddresses update`
+            );
             epEipRegions.emit("regions", true);
           });
         });

@@ -18,16 +18,20 @@ router
     "/ecslist",
     async (ctx, next) => {
       // console.info(ctx.state.user); 当前用户
-      return db.Region.find().then(res => {
-        ctx.body = { Regions: res };
-        return next();
-      });
+      return db.Region.find()
+        .sort("RegionId")
+        .then(res => {
+          ctx.body = { Regions: res };
+          return next();
+        });
     },
     async (ctx, next) => {
-      return db.Instance.find().then(res => {
-        ctx.body.Instances = res;
-        return next();
-      });
+      return db.Instance.find()
+        .sort("RegionId InstanceId")
+        .then(res => {
+          ctx.body.Instances = res;
+          return next();
+        });
     },
     async (ctx, next) => {
       return db.EipAddress.find().then(res => {
@@ -42,10 +46,12 @@ router
     }
   )
   .get("/regionlist", async (ctx, next) => {
-    return db.Region.find().then(res => {
-      ctx.body = { Regions: res };
-      return next();
-    });
+    return db.Region.find()
+      .sort("RegionId")
+      .then(res => {
+        ctx.body = { Regions: res };
+        return next();
+      });
   })
   .get(
     "/essList",
@@ -80,10 +86,12 @@ router
       });
     },
     async (ctx, next) => {
-      return db.Region.find().then(res => {
-        ctx.body.Regions = res;
-        return next();
-      });
+      return db.Region.find()
+        .sort("RegionId")
+        .then(res => {
+          ctx.body.Regions = res;
+          return next();
+        });
     },
     async ctx => {
       return db.InstanceType.find().then(res => {
@@ -94,18 +102,22 @@ router
   .get(
     "/eipList",
     async (ctx, next) => {
-      return db.Region.find().then(res => {
-        ctx.body = {
-          Regions: res
-        };
-        return next();
-      });
+      return db.Region.find()
+        .sort("RegionId")
+        .then(res => {
+          ctx.body = {
+            Regions: res
+          };
+          return next();
+        });
     },
     async (ctx, next) => {
-      return db.Instance.find().then(res => {
-        ctx.body.Instances = res;
-        return next();
-      });
+      return db.Instance.find()
+        .sort("RegionId InstanceId")
+        .then(res => {
+          ctx.body.Instances = res;
+          return next();
+        });
     },
     async (ctx, next) => {
       return db.EipAddress.find().then(res => {
@@ -114,10 +126,14 @@ router
       });
     }
   )
-  .get("/allReflash", async (ctx, next) => {
-    tasks.AllReflash();
-    await next();
-    ctx.body = "success";
+  .get("/tasks/:Action", async (ctx, next) => {
+    if (tasks[ctx.params.Action]) {
+      tasks[ctx.params.Action](true);
+      ctx.body = "success";
+    } else {
+      ctx.body = "not found";
+    }
+    return next();
   });
 
 module.exports = router;
