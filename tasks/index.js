@@ -1131,10 +1131,10 @@ const tasks = {
 
 module.exports = {
   tasks: tasks,
-  InstanceStatusReflash: instanceTypesReflash,
+  InstanceTypesReflash: instanceTypesReflash,
   ScalingInstanceReflash: scalingInstanceReflash,
   ScalingAllReflash: scalingAllReflash,
-  InstanceTypesReflash: instanceStatusReflash,
+  InstanceStatusReflash: instanceStatusReflash,
   EipAddressesReflash: eipAddressesReflash,
   AllReflash: allReflash
 };

@@ -67,10 +67,15 @@ router
           resolve();
         });
         ctx.body.PingInfos.forEach(info => {
-          ping.promise.probe(info.IpAddress, { min_reply: 4 }).then(res => {
-            info.pingInfo = res;
+          if (info.IpAddress) {
+            ping.promise.probe(info.IpAddress, { min_reply: 4 }).then(res => {
+              info.pingInfo = res;
+              epPings.emit("ping", info);
+            });
+          } else {
+            info.pingInfo = { noIp: true, alive: false };
             epPings.emit("ping", info);
-          });
+          }
         });
       }).then(res => {
         return next();
