@@ -989,7 +989,7 @@ const scalingAllReflash = unClear => {
           region.RegionData.ScalingGroups = ScalingGroups;
           region.save((err, res) => {
             if (err) return epError.emit("error", err);
-            epScRegions.emit("regions", ScalingGroups.length > 0);
+            epScRegions.emit("region", ScalingGroups.length > 0);
           });
         });
         ess.describeScalingGroups(
@@ -1131,6 +1131,6 @@ module.exports = {
   AllReflash: allReflash
 };
 
-// db.Init(model => {
-//   eipAddressesReflash();
-// });
+db.Init(model => {
+  scalingAllReflash();
+});
