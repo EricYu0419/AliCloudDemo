@@ -1017,7 +1017,15 @@ const scalingAllReflash = unClear => {
                   "Activities",
                   "Configurations",
                   (activities, configurations) => {
-                    epRegionGroups.emit("regionGroup", true);
+                    db.ScalingGroup.findOneAndUpdate(
+                      { ScalingGroupId: group.ScalingGroupId },
+                      group,
+                      { new: true, upsert: true },
+                      (err, updateGroup) => {
+                        if (err) return epError.emit("error", err);
+                        epRegionGroups.emit("regionGroup", true);
+                      }
+                    );
                   }
                 );
                 ess.describeScalingConfigurations(
@@ -1131,6 +1139,6 @@ module.exports = {
   AllReflash: allReflash
 };
 
-db.Init(model => {
-  scalingAllReflash();
-});
+// db.Init(model => {
+//   scalingAllReflash();
+// });
