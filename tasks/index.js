@@ -763,7 +763,7 @@ const instanceStatusReflash = () => {
     }
   });
 };
-const scalingInstanceReflash = () => {
+const scalingInstanceReflash = unClear => {
   console.time("ScalingInstanceReflash");
   console.info(`ScalingInstanceReflash start at ${new Date().toISOString()}`);
   const epError = new EP();
@@ -772,10 +772,12 @@ const scalingInstanceReflash = () => {
     console.info("ScalingInstanceReflash end with error:");
     console.error(error);
   });
-  db.ScalingInstance.remove(err => {
-    if (err) epError.emit("error", err);
-    console.info(`ScalingInstances Clear Up`);
-  });
+  if (!unClear) {
+    db.ScalingInstance.remove(err => {
+      if (err) epError.emit("error", err);
+      console.info(`ScalingInstances Clear Up`);
+    });
+  }
   db.Region.find((err, regions) => {
     if (err) {
       return epError.emit("error", err);
@@ -946,6 +948,164 @@ const eipAddressesReflash = () => {
   });
 };
 
+const scalingAllReflash = unClear => {
+  console.time("ScalingAllReflash");
+  console.info(`ScalingAllReflash start at ${new Date().toISOString()}`);
+  const epError = new EP();
+  epError.once("error", error => {
+    console.timeEnd("ScalingAllReflash");
+    console.info("ScalingAllReflash end with error:");
+    console.error(error);
+    return;
+  });
+  if (!unClear) {
+    db.ScalingGroup.remove(err => {
+      if (err) return epError.emit("error", err);
+      console.info(`ScalingGroups Clear Up`);
+    });
+    db.ScalingConfiguration.remove(err => {
+      if (err) return epError.emit("error", err);
+      console.info(`ScalingConfigurations Clear Up`);
+    });
+    db.ScalingActivity.remove(err => {
+      if (err) return epError.emit("error", err);
+      console.info(`ScalingActivities Clear Up`);
+    });
+  }
+  db.Region.find((err, regions) => {
+    if (err) return epError.emit("error", err);
+    if (regions && regions.length > 0) {
+      const epScRegions = new EP();
+      epScRegions.after("region", regions.length, regions => {
+        console.timeEnd("ScalingAllReflash");
+        console.info(`ScalingAllReflash end with ${regions.length} regions`);
+      });
+      regions.forEach(region => {
+        const epRegionDatas = new EP();
+        let regionData = region.RegionData;
+        regionData.ScalingActivities = [];
+        regionData.ScalingConfigurations = [];
+        epRegionDatas.all("ScalingGroups", ScalingGroups => {
+          region.RegionData.ScalingGroups = ScalingGroups;
+          region.save((err, res) => {
+            if (err) return epError.emit("error", err);
+            epScRegions.emit("regions", ScalingGroups.length > 0);
+          });
+        });
+        ess.describeScalingGroups(
+          { RegionId: region.RegionId, PageNumber: 1, PageSize: 50 },
+          (err, res) => {
+            if (err) return epError.emit("error", err);
+            if (
+              res &&
+              res.ScalingGroups &&
+              res.ScalingGroups.ScalingGroup &&
+              res.ScalingGroups.ScalingGroup.length > 0
+            ) {
+              const groups = res.ScalingGroups.ScalingGroup;
+              const epRegionGroups = new EP();
+              epRegionGroups.after(
+                "regionGroup",
+                groups.length,
+                regionGroup => {
+                  epRegionDatas.emit("ScalingGroups", groups);
+                }
+              );
+              groups.forEach(group => {
+                const epGroupChilren = new EP();
+                epGroupChilren.all(
+                  "Activities",
+                  "Configurations",
+                  (activities, configurations) => {
+                    epRegionGroups.emit("regionGroup", true);
+                  }
+                );
+                ess.describeScalingConfigurations(
+                  {
+                    RegionId: region.RegionId,
+                    ScalingGroupId: group.ScalingGroupId,
+                    PageNumber: 1,
+                    PageSize: 50
+                  },
+                  (err, res) => {
+                    if (err) return epError.emit("error", err);
+                    if (
+                      res &&
+                      res.ScalingConfigurations &&
+                      res.ScalingConfigurations.ScalingConfiguration &&
+                      res.ScalingConfigurations.ScalingConfiguration.length > 0
+                    ) {
+                      const configs =
+                        res.ScalingConfigurations.ScalingConfiguration;
+                      configs.forEach(config => {
+                        regionData.ScalingConfigurations.push(config);
+                        db.ScalingConfiguration.findOneAndUpdate(
+                          {
+                            ScalingConfigurationId:
+                              config.ScalingConfigurationId
+                          },
+                          config,
+                          { new: true, upsert: true },
+                          (err, updates) => {
+                            if (err) return epError.emit("error", err);
+                          }
+                        );
+                      });
+                      epGroupChilren.emit("Configurations", configs);
+                    } else {
+                      epGroupChilren.emit("Configurations", []);
+                    }
+                  }
+                );
+                ess.describeScalingActivities(
+                  {
+                    RegionId: region.RegionId,
+                    ScalingGroupId: group.ScalingGroupId,
+                    PageNumber: 1,
+                    PageSize: 50
+                  },
+                  (err, res) => {
+                    if (err) return epError.emit("error", err);
+                    if (
+                      res &&
+                      res.ScalingActivities &&
+                      res.ScalingActivities.ScalingActivity &&
+                      res.ScalingActivities.ScalingActivity.length > 0
+                    ) {
+                      const activities = res.ScalingActivities.ScalingActivity;
+                      activities.forEach(activity => {
+                        regionData.ScalingActivities.push(activity);
+                        db.ScalingActivity.findOneAndUpdate(
+                          {
+                            ScalingActivityId: activity.ScalingActivityId
+                          },
+                          activity,
+                          { new: true, upsert: true },
+                          (err, updates) => {
+                            if (err) return epError.emit("error", err);
+                          }
+                        );
+                      });
+                      epGroupChilren.emit("Activities", activities);
+                    } else {
+                      epGroupChilren.emit("Activities", []);
+                    }
+                  }
+                );
+              });
+            } else {
+              epRegionDatas.emit("ScalingGroups", []);
+            }
+          }
+        );
+      });
+    } else {
+      console.timeEnd("ScalingAllReflash");
+      console.info("ScalingAllReflash end with empty regions");
+    }
+  });
+};
+
 const tasks = {
   AllReflash: later.setInterval(allReflash, sched.every15mins),
   InstanceStatusReflash: later.setInterval(
@@ -956,6 +1116,7 @@ const tasks = {
     scalingInstanceReflash,
     sched.every1mins
   ),
+  ScalingAllReflash: later.setInterval(scalingAllReflash, sched.every1mins),
   EipAddressesReflash: later.setInterval(eipAddressesReflash, sched.every1mins),
   InstanceTypesReflash: later.setInterval(instanceTypesReflash, sched.everyday)
 };
@@ -964,6 +1125,7 @@ module.exports = {
   tasks: tasks,
   InstanceStatusReflash: instanceTypesReflash,
   ScalingInstanceReflash: scalingInstanceReflash,
+  ScalingAllReflash: scalingAllReflash,
   InstanceTypesReflash: instanceStatusReflash,
   EipAddressesReflash: eipAddressesReflash,
   AllReflash: allReflash
